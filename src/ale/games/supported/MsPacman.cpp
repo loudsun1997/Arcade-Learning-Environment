@@ -39,22 +39,51 @@ RomSettings* MsPacmanSettings::clone() const {
   return new MsPacmanSettings(*this);
 }
 
-/* process the latest information from ALE */
 void MsPacmanSettings::step(const System& system) {
-  // update the reward
-  int score = getDecimalScore(0xF8, 0xF9, 0xFA, &system);
-  int reward = score - m_score;
-  m_reward = reward;
-  m_score = score;
+    // Update lives as before
+    int lives_byte = readRam(&system, 0xFB) & 0xF;
+    int death_timer = readRam(&system, 0xA7);
+    m_lives = (lives_byte & 0x7) + 1;
 
-  // update terminal status
-  int lives_byte = readRam(&system, 0xFB) & 0xF;
-  // MGB Did not work int black_screen_byte = readRam(&system, 0x94);
-  int death_timer = readRam(&system, 0xA7);
-  m_terminal = (lives_byte == 0 && death_timer == 0x53);
+    // Track pellets cleared directly
+    int pelletsCleared = 0;
+    for (int addr = 0x4000; addr <= 0x43FF; addr++) {
+        if (readRam(&system, addr) == 0) {  // Pellet cleared
+            pelletsCleared++;
+        }
+    }
 
-  m_lives = (lives_byte & 0x7) + 1;
+    // Track ghost interactions directly
+    int ghostStates[4];  // Assume there are 4 ghosts
+    for (int i = 0; i < 4; i++) {
+        ghostStates[i] = readRam(&system, 0x4EF0 + i);  // Access ghost states directly
+    }
+
+    // Compute reward
+    m_reward = 0;
+    if (m_lives < m_prev_lives) {
+        m_reward -= 10;  // Penalize for losing a life
+    } else if (pelletsCleared > m_prevPelletsCleared) {
+        m_reward += (pelletsCleared - m_prevPelletsCleared);  // Reward for clearing pellets
+    }
+
+    for (int i = 0; i < 4; i++) {
+        if (ghostStates[i] == GHOST_EATEN_STATE) {
+            m_reward += 5;  // Reward for eating ghosts
+        }
+    }
+
+    // Survival bonus
+    if (!m_terminal) {
+        m_reward += 1;  // Small bonus for surviving each step
+    }
+
+    // Update game state
+    m_prev_lives = m_lives;
+    m_prevPelletsCleared = pelletsCleared;
+    m_terminal = (lives_byte == 0 && death_timer == 0x53);
 }
+
 
 /* is end of game */
 bool MsPacmanSettings::isTerminal() const { return m_terminal; };
@@ -86,6 +115,8 @@ void MsPacmanSettings::reset() {
   m_score = 0;
   m_terminal = false;
   m_lives = 3;
+  m_prev_lives = m_lives;
+  m_prevPelletsCleared = 0;
 }
 
 /* saves the state of the rom settings */
@@ -94,6 +125,7 @@ void MsPacmanSettings::saveState(Serializer& ser) {
   ser.putInt(m_score);
   ser.putBool(m_terminal);
   ser.putInt(m_lives);
+  ser.putInt(m_prev_lives);
 }
 
 // loads the state of the rom settings
@@ -102,6 +134,7 @@ void MsPacmanSettings::loadState(Deserializer& ser) {
   m_score = ser.getInt();
   m_terminal = ser.getBool();
   m_lives = ser.getInt();
+  m_prev_lives = ser.getInt();
 }
 
 // returns a list of mode that the game can be played in

@@ -26,8 +26,11 @@ target_link_libraries(ale
     ZLIB::ZLIB
     Threads::Threads)
 
+
+set(SDL_SUPPORT OFF CACHE BOOL "" FORCE)
 if(SDL_SUPPORT)
   option(SDL_DYNLOAD "Dynamically load SDL" OFF)
+  set(SDL_SUPPORT OFF CACHE BOOL "" FORCE)
   find_package(SDL2 CONFIG REQUIRED)
 
   # VCPKG doesn't include SDL2_INCLUDE_DIRS

@@ -1,0 +1,22 @@
+#first time build
+mkdir build
+cd build
+
+#clean up
+rm -rf *
+
+
+cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_PYTHON_LIB=ON -DBUILD_CPP_LIB=OFF -DPYTHON_EXECUTABLE=$(which python)
+make
+
+#back out to root
+cd ..
+
+#update version, not needed but strongly recommended
+awk -F. '{printf "%d.%d.%d\n", $1, $2, $3+1}' version.txt > temp.txt && mv temp.txt version.txt
+#run pip install . under root where setup.py is located
+pip install .
+
+
+#rebuild
+rm -rf dist/ ale_py.egg-info/

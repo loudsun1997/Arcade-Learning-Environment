@@ -86,6 +86,9 @@ class MsPacmanSettings : public RomSettings {
   reward_t m_reward;
   reward_t m_score;
   int m_lives;
+  int m_prev_lives;
+  int m_prevPelletsCleared;
+  int GHOST_EATEN_STATE;
 };
 
 }  // namespace ale
